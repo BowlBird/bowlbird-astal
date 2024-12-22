@@ -1,42 +1,52 @@
 {
-  description = "BowlBird Astal System Configuration";
+  description = "BowlBird Shell";
 
   inputs = {
-    nixpkgs.url = "github:nixos/nixpkgs/nixos-unstable";
-    astal = {
-      url = "github:aylur/astal";
-      inputs.nixpkgs.follows = "nixpkgs";
-    };
+    nixpkgs.url = "github:nixos/nixpkgs?ref=nixos-unstable";
+
     ags = {
       url = "github:aylur/ags";
       inputs.nixpkgs.follows = "nixpkgs";
     };
   };
 
-  outputs = { self, nixpkgs, astal, ags }: let
+  outputs = {
+    self,
+    nixpkgs,
+    ags,
+  }: let
     system = "x86_64-linux";
     pkgs = nixpkgs.legacyPackages.${system};
   in {
-    packages.${system}. default = pkgs.stdenvNoCC.mkDerivation rec {
-      name = "bowlbird-shell";
-      src = ./.;
+    packages.${system} = {
+      default = ags.lib.bundle {
+        inherit pkgs;
+        src = ./.;
+        name = "bowlbird-shell";
+        entry = "app.ts";
 
-      nativeBuildInputs = [
-        ags.packages.${system}.default
-        pkgs.wrapGAppsHook
-        pkgs.gobject-introspection
-      ];
+        # additional libraries and executables to add to gjs' runtime
+        extraPackages = [
+          # ags.packages.${system}.battery
+          # pkgs.fzf
+        ];
+      };
+    };
 
-      buildInputs = with astal.packages.${system}; [
-        astal3
-        io
-        # any other package
-      ];
+    devShells.${system} = {
+      default = pkgs.mkShell {
+        buildInputs = [
+          # includes all Astal libraries
+          # ags.packages.${system}.agsFull
 
-      installPhase = ''
-        mkdir -p $out/bin
-        ags bundle app.ts $out/bin/${name}
-      '';
+          # includes astal3 astal4 astal-io by default
+          (ags.packages.${system}.default.override {
+            extraPackages = [
+              # cherry pick packages
+            ];
+          })
+        ];
+      };
     };
   };
 }
